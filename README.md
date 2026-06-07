@@ -83,11 +83,11 @@ The final score determines the restaurant's tier:
 
 | Tier | Match score | Pull rate | What it means |
 | --- | ---: | ---: | --- |
-| SSR | 85-100 | 5% | An almost perfect match |
-| SR | 70-84 | 15% | A very strong match |
-| Rare | 50-69 | 25% | A solid match |
-| Uncommon | 30-49 | 30% | Matches some preferences |
-| Common | 0-29 | 25% | A nearby wildcard |
+| SSR | 85-100 | 5% | The restaurant of your dreams |
+| SR | 70-84 | 15% | A restaurant you'll love |
+| Rare | 50-69 | 25% | A memorable restaurant|
+| Uncommon | 30-49 | 30% | A decent restaurant|
+| Common | 0-29 | 25% | A forgettable restaurant |
 
 Every non-SSR result raises the pity counter. When the counter reaches nine,
 the next pull is guaranteed to be SSR when the current search contains an SSR
