@@ -5,8 +5,15 @@ from collections.abc import Iterable
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-RARITY_WEIGHTS = {"SSR": 5, "SR": 35, "R": 60}
-RARITY_ORDER = ("SSR", "SR", "R")
+RARITY_WEIGHTS = {"SSR": 5, "SR": 15, "R": 25, "U": 30, "C": 25}
+RARITY_ORDER = ("SSR", "SR", "R", "U", "C")
+RARITY_LABELS = {
+    "SSR": "SSR",
+    "SR": "SR",
+    "R": "Rare",
+    "U": "Uncommon",
+    "C": "Common",
+}
 PITY_LIMIT = 10
 
 
@@ -15,9 +22,13 @@ def rarity_for(business: dict[str, Any]) -> str:
     reviews = int(business.get("review_count") or 0)
     if rating >= 4.5 and reviews >= 200:
         return "SSR"
-    if rating >= 4.0 or reviews >= 100:
+    if rating >= 4.0 and reviews >= 100:
         return "SR"
-    return "R"
+    if rating >= 4.0 or reviews >= 100:
+        return "R"
+    if rating >= 3.5 or reviews >= 25:
+        return "U"
+    return "C"
 
 
 def choose_restaurant(

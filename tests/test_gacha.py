@@ -24,16 +24,18 @@ def business(
 
 def test_rarity_rules() -> None:
     assert rarity_for(business("excellent", 4.5, 200)) == "SSR"
-    assert rarity_for(business("popular", 3.5, 100)) == "SR"
-    assert rarity_for(business("high-rated", 4.0, 5)) == "SR"
-    assert rarity_for(business("ordinary", 3.9, 99)) == "R"
+    assert rarity_for(business("strong", 4.2, 150)) == "SR"
+    assert rarity_for(business("popular", 3.4, 100)) == "R"
+    assert rarity_for(business("high-rated", 4.0, 5)) == "R"
+    assert rarity_for(business("uncommon", 3.5, 25)) == "U"
+    assert rarity_for(business("common", 3.4, 24)) == "C"
 
 
 def test_pity_forces_ssr_when_available() -> None:
     selected, rarity, pity = choose_restaurant(
         [
             business("ssr", 4.8, 500),
-            business("r", 3.0, 10),
+            business("common", 3.0, 10),
         ],
         pity_counter=9,
         history=[],
@@ -47,13 +49,13 @@ def test_pity_forces_ssr_when_available() -> None:
 
 def test_pity_remains_active_without_ssr_candidate() -> None:
     selected, rarity, pity = choose_restaurant(
-        [business("r", 3.0, 10)],
+        [business("common", 3.0, 10)],
         pity_counter=9,
         history=[],
         rng=random.Random(1),
     )
     assert selected is not None
-    assert rarity == "R"
+    assert rarity == "C"
     assert pity == 10
 
 
@@ -87,4 +89,3 @@ def test_recently_visited_restaurant_is_excluded() -> None:
         }
     ]
     assert filter_candidates(restaurants, history, []) == []
-

@@ -1,8 +1,8 @@
 # foodgacha
 
-foodgacha is a Python command-line tool that combines restaurant recommendations with
-gacha pulls and dating app mechanics. I chose this idea because I'm terrible at finding new places
-to eat.
+foodgacha is a Python command-line tool that combines restaurant recommendations
+with gacha pulls and dating app mechanics. I chose this idea because I'm
+terrible at finding new places to eat.
 
 ## Usage
 
@@ -52,30 +52,35 @@ a Yelp API key.
 3. Install the command directly from GitHub:
 
    ```console
-   $ uv tool install "git+https://github.com/alanx1234/foodgacha.git"
+   $ uv add "git+https://github.com/alanx1234/foodgacha.git"
+   $ uv run foodgacha --help
    ```
 
 ## How Recommendations Work
-
 
 Each Yelp result is placed into a rarity tier:
 
 | Tier | Rule | Pull rate |
 | --- | --- | ---: |
 | SSR | Yelp rating at least 4.5 and at least 200 reviews | 5% |
-| SR | Yelp rating at least 4.0 or at least 100 reviews | 35% |
-| R | Every other result | 60% |
+| SR | Yelp rating at least 4.0 and at least 100 reviews | 15% |
+| R | Yelp rating at least 4.0 or at least 100 reviews | 25% |
+| U (Uncommon) | Yelp rating at least 3.5 or at least 25 reviews | 30% |
+| C (Common) | Every other result | 25% |
 
-Every non-SSR result raises the pity counter. This is a popular mechanic in gacha games. When the counter
-reaches nine, the next pull is guaranteed to be SSR when the current search
-contains an SSR candidate. If Yelp returns no SSR candidate, foodgacha chooses
-from the available tiers and keeps the pity counter active for a future pull.
+Every non-SSR result raises the pity counter, a popular mechanic in gacha
+games. When the counter reaches nine, the next pull is guaranteed to be SSR
+when the current search contains an SSR candidate. If Yelp returns no SSR
+candidate, foodgacha chooses from the available tiers and keeps the pity
+counter active for a future pull.
 
-The swipe feature works like a dating app. Foodgacha saves the
-preferences you choose for future pulls. Cuisines and prices filter Yelp results, while vibes
-filter or increase the weight of matching restaurants.
+The swipe feature works like a terminal-based dating app. Press the right arrow
+or `y` to keep a cuisine, price, or vibe, and press the left arrow or `n` to
+skip it. Foodgacha saves your choices for future pulls: cuisines and prices
+filter Yelp results, while vibes filter or increase the weight of matching
+restaurants.
 
-Restaurants marked  as visited in the last seven days are excluded. "Something
+Restaurants marked as visited in the last seven days are excluded. "Something
 New" excludes every restaurant already in your history, while "Old Favorite"
 only permits previously visited restaurants. Other vibes boost likely matches
 within a rarity tier because Yelp does not expose exact filters for concepts

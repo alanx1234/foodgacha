@@ -10,7 +10,12 @@ from rich.console import Console
 from rich.table import Table
 
 from foodgacha import __version__
-from foodgacha.gacha import PITY_LIMIT, choose_restaurant, history_entry
+from foodgacha.gacha import (
+    PITY_LIMIT,
+    RARITY_LABELS,
+    choose_restaurant,
+    history_entry,
+)
 from foodgacha.storage import load_data, save_data
 from foodgacha.swipe import collect_preferences
 from foodgacha.yelp import YelpError, search_businesses
@@ -102,8 +107,13 @@ def pull(
         )
         raise typer.Exit(1)
 
-    stars = {"SSR": "***", "SR": "**", "R": "*"}[rarity]
-    console.print(f"\n[bold magenta]{stars}  {rarity}  {stars}[/bold magenta]")
+    stars = {"SSR": "*****", "SR": "****", "R": "***", "U": "**", "C": "*"}[
+        rarity
+    ]
+    rarity_label = RARITY_LABELS[rarity]
+    console.print(
+        f"\n[bold magenta]{stars}  {rarity_label}  {stars}[/bold magenta]"
+    )
     time.sleep(0.8)
     entry = history_entry(selected, rarity)
     console.print(f"\n[bold]{entry['name']}[/bold]")
@@ -167,7 +177,10 @@ def show_history(
         personal_rating = entry.get("rating_given")
         table.add_row(
             str(entry.get("name", "Unknown")),
-            str(entry.get("rarity", "R")),
+            RARITY_LABELS.get(
+                str(entry.get("rarity", "C")),
+                str(entry.get("rarity", "Common")),
+            ),
             "yes" if visited else "no",
             f"{personal_rating}/10" if personal_rating else "-",
             str(entry.get("date", "")),
