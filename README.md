@@ -46,8 +46,8 @@ Install the command directly from GitHub:
 
 ```console
 $ uv add "git+https://github.com/alanx1234/foodgacha.git"
-$ uv run foodgacha --help
 $ source .venv/bin/activate
+$ foodgacha --help
 ```
 
 ## How Recommendations Work
@@ -96,8 +96,10 @@ match. This is a popular mechanic in gacha games. If that search has no SSR
 matches, foodgacha chooses from the available tiers and keeps the pity counter
 active for a future pull.
 
-Restaurants marked as visited are excluded from future recommendations. A
-restaurant that was pulled but never marked visited can still appear again.
+Every restaurant is added to history as soon as it is pulled. Restaurants
+already in that history are excluded from future recommendations, even if they
+were never marked visited, so each pull produces a place you have not rolled
+before.
 
 Restaurant and location data is provided by
 [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) under the
