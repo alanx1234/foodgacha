@@ -119,6 +119,32 @@ def test_history_vibes_filter_candidates() -> None:
     ] == ["known"]
 
 
+def test_conflicting_history_vibes_cancel_each_other() -> None:
+    restaurants = [business("known"), business("new")]
+    history = [{"id": "known", "visited": True, "date": "2020-01-01"}]
+
+    candidates = filter_candidates(
+        restaurants,
+        history,
+        ["something-new", "old-favorite"],
+    )
+
+    assert [item["id"] for item in candidates] == ["known", "new"]
+
+
+def test_old_favorite_can_include_recently_visited_places() -> None:
+    restaurants = [business("favorite")]
+    history = [
+        {
+            "id": "favorite",
+            "visited": True,
+            "date": date.today().isoformat(),
+        }
+    ]
+
+    assert filter_candidates(restaurants, history, ["old-favorite"]) == restaurants
+
+
 def test_recently_visited_restaurant_is_excluded() -> None:
     restaurants = [business("recent")]
     history = [

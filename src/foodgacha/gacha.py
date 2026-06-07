@@ -15,6 +15,7 @@ RARITY_LABELS = {
     "C": "Common",
 }
 PITY_LIMIT = 10
+HISTORY_VIBES = {"something-new", "old-favorite"}
 
 CUISINE_ALIASES = {
     "american": {"american", "burger", "burgers", "steak", "wings"},
@@ -141,7 +142,7 @@ def match_score(
         str(key): str(value).lower()
         for key, value in (business.get("tags") or {}).items()
     }
-    normalized_vibes = {vibe.lower() for vibe in vibes}
+    normalized_vibes = normalize_vibes(vibes)
     history_ids = {str(entry.get("id")) for entry in history}
     visited_ids = {
         str(entry.get("id")) for entry in history if entry.get("visited") is True
@@ -202,8 +203,12 @@ def filter_candidates(
     history: list[dict[str, Any]],
     vibes: list[str],
 ) -> list[dict[str, Any]]:
-    normalized_vibes = {vibe.lower() for vibe in vibes}
-    recent_ids = _recently_visited_ids(history)
+    normalized_vibes = normalize_vibes(vibes)
+    recent_ids = (
+        set()
+        if "old-favorite" in normalized_vibes
+        else _recently_visited_ids(history)
+    )
     known_ids = {str(item.get("id")) for item in history}
     favorite_ids = {
         str(item.get("id")) for item in history if item.get("visited") is True
@@ -227,6 +232,13 @@ def filter_candidates(
             if str(business.get("id")) in favorite_ids
         ]
     return candidates
+
+
+def normalize_vibes(vibes: list[str]) -> set[str]:
+    normalized = {vibe.lower() for vibe in vibes}
+    if HISTORY_VIBES <= normalized:
+        normalized -= HISTORY_VIBES
+    return normalized
 
 
 def history_entry(

@@ -97,7 +97,9 @@ active for a future pull.
 
 Restaurants marked as visited in the last seven days are excluded. "Something
 New" excludes every restaurant already in your history, while "Old Favorite"
-only permits previously visited restaurants.
+only permits previously visited restaurants, including recent favorites. If
+you select both Something New and Old Favorite, they cancel each other out so
+the search remains broad instead of becoming impossible.
 
 Restaurant and location data is provided by
 [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) under the

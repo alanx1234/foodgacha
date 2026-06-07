@@ -15,6 +15,7 @@ from foodgacha.gacha import (
     RARITY_LABELS,
     choose_restaurant,
     history_entry,
+    normalize_vibes,
 )
 from foodgacha.openstreetmap import (
     OpenStreetMapError,
@@ -57,6 +58,18 @@ def swipe() -> None:
     except (KeyboardInterrupt, EOFError):
         console.print("\n[yellow]Swipe cancelled; existing preferences were kept.[/yellow]")
         raise typer.Exit(1)
+
+    selected_vibes = list(preferences["vibes"])
+    if {"something-new", "old-favorite"} <= set(selected_vibes):
+        preferences["vibes"] = [
+            vibe
+            for vibe in selected_vibes
+            if vibe not in {"something-new", "old-favorite"}
+        ]
+        console.print(
+            "\n[yellow]Something New and Old Favorite cancel each other out, "
+            "so neither was saved.[/yellow]"
+        )
 
     data["preferences"] = preferences
     save_data(data)
