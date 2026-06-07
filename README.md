@@ -38,7 +38,7 @@ Run `foodgacha --help` or `foodgacha COMMAND --help` for every option.
 
 ## Installation
 
-foodgacha requires Python 3.11 or newer and
+foodgacha requires Python 3.8 or newer and
 [uv](https://docs.astral.sh/uv/). It uses OpenStreetMap and does not require an
 API key or paid account.
 

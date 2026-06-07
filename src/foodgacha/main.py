@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
-from typing import Annotated, Any
+from typing import Any, List, Optional
 
 import typer
 from rich.align import Align
@@ -11,6 +11,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
+from typing_extensions import Annotated
 
 from foodgacha import __version__
 from foodgacha.gacha import (
@@ -42,10 +43,12 @@ def version_callback(value: bool) -> None:
 
 @app.callback()
 def main(
-    version: Annotated[
-        bool | None,
-        typer.Option("--version", callback=version_callback, is_eager=True),
-    ] = None,
+    version: bool = typer.Option(
+        False,
+        "--version",
+        callback=version_callback,
+        is_eager=True,
+    ),
 ) -> None:
     """A restaurant recommendation gacha game."""
 
@@ -74,18 +77,18 @@ def swipe() -> None:
 @app.command()
 def pull(
     location: Annotated[
-        str | None, typer.Option(help="Use a different location for this pull.")
+        Optional[str], typer.Option(help="Use a different location for this pull.")
     ] = None,
     cuisine: Annotated[
-        list[str] | None,
+        Optional[List[str]],
         typer.Option(help="Override saved cuisines. Repeat for more than one."),
     ] = None,
     dish: Annotated[
-        list[str] | None,
+        Optional[List[str]],
         typer.Option(help="Override saved dishes. Repeat for more than one."),
     ] = None,
     price: Annotated[
-        list[int] | None,
+        Optional[List[int]],
         typer.Option(min=1, max=4, help="Override saved prices. Repeat for more than one."),
     ] = None,
 ) -> None:
