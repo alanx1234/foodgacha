@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import random
-from datetime import date
 
 from foodgacha.gacha import (
     choose_restaurant,
@@ -106,22 +105,29 @@ def test_pity_remains_active_without_ssr_candidate() -> None:
     assert pity == 10
 
 
-def test_history_vibes_filter_candidates() -> None:
-    restaurants = [business("known"), business("new")]
-    history = [{"id": "known", "visited": True, "date": "2020-01-01"}]
-    assert [
-        item["id"]
-        for item in filter_candidates(restaurants, history, ["something-new"])
-    ] == ["new"]
-    assert [
-        item["id"]
-        for item in filter_candidates(restaurants, history, ["old-favorite"])
-    ] == ["known"]
+def test_visited_restaurants_are_always_excluded() -> None:
+    restaurants = [business("visited"), business("unvisited-pull"), business("new")]
+    history = [
+        {
+            "id": "visited",
+            "visited": True,
+            "date": "2020-01-01",
+        },
+        {
+            "id": "unvisited-pull",
+            "visited": False,
+            "date": "2020-01-01",
+        },
+    ]
+
+    candidates = filter_candidates(restaurants, history, [])
+
+    assert [item["id"] for item in candidates] == ["unvisited-pull", "new"]
 
 
-def test_conflicting_history_vibes_cancel_each_other() -> None:
-    restaurants = [business("known"), business("new")]
-    history = [{"id": "known", "visited": True, "date": "2020-01-01"}]
+def test_removed_history_vibes_are_ignored_for_legacy_profiles() -> None:
+    restaurants = [business("visited"), business("new")]
+    history = [{"id": "visited", "visited": True, "date": "2020-01-01"}]
 
     candidates = filter_candidates(
         restaurants,
@@ -129,29 +135,4 @@ def test_conflicting_history_vibes_cancel_each_other() -> None:
         ["something-new", "old-favorite"],
     )
 
-    assert [item["id"] for item in candidates] == ["known", "new"]
-
-
-def test_old_favorite_can_include_recently_visited_places() -> None:
-    restaurants = [business("favorite")]
-    history = [
-        {
-            "id": "favorite",
-            "visited": True,
-            "date": date.today().isoformat(),
-        }
-    ]
-
-    assert filter_candidates(restaurants, history, ["old-favorite"]) == restaurants
-
-
-def test_recently_visited_restaurant_is_excluded() -> None:
-    restaurants = [business("recent")]
-    history = [
-        {
-            "id": "recent",
-            "visited": True,
-            "date": date.today().isoformat(),
-        }
-    ]
-    assert filter_candidates(restaurants, history, []) == []
+    assert [item["id"] for item in candidates] == ["new"]

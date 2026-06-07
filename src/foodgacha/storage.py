@@ -5,6 +5,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+REMOVED_VIBES = {"something-new", "old-favorite"}
+
 
 def data_path() -> Path:
     override = os.environ.get("FOODGACHA_DATA_FILE")
@@ -39,6 +41,12 @@ def load_data() -> dict[str, Any]:
         data.update(stored)
     if not isinstance(data.get("preferences"), dict):
         data["preferences"] = default_data()["preferences"]
+    preferences = data["preferences"]
+    vibes = preferences.get("vibes", [])
+    if isinstance(vibes, list):
+        preferences["vibes"] = [
+            vibe for vibe in vibes if str(vibe).lower() not in REMOVED_VIBES
+        ]
     if not isinstance(data.get("history"), list):
         data["history"] = []
     if not isinstance(data.get("geocache"), dict):

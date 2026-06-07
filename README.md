@@ -77,7 +77,6 @@ Foodgacha gives each nearby restaurant match points:
 - Within two miles: **+15 points**
 - Helpful details such as hours, a website, takeaway, or accessibility:
   **up to +10 points**
-- Previously visited: **-20 points**, unless you selected Old Favorite
 
 The final score determines the restaurant's tier:
 
@@ -95,11 +94,8 @@ match. This is a popular mechanic in gacha games. If that search has no SSR
 matches, foodgacha chooses from the available tiers and keeps the pity counter
 active for a future pull.
 
-Restaurants marked as visited in the last seven days are excluded. "Something
-New" excludes every restaurant already in your history, while "Old Favorite"
-only permits previously visited restaurants, including recent favorites. If
-you select both Something New and Old Favorite, they cancel each other out so
-the search remains broad instead of becoming impossible.
+Restaurants marked as visited are excluded from future recommendations. A
+restaurant that was pulled but never marked visited can still appear again.
 
 Restaurant and location data is provided by
 [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) under the

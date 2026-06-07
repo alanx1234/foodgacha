@@ -16,3 +16,17 @@ def test_data_round_trip(tmp_path, monkeypatch) -> None:
     assert load_data()["location"] == "San Diego, CA"
     assert load_data()["pity_counter"] == 4
 
+
+def test_removed_vibes_are_migrated_out(tmp_path, monkeypatch) -> None:
+    path = tmp_path / "data.json"
+    monkeypatch.setenv("FOODGACHA_DATA_FILE", str(path))
+    data = load_data()
+    data["preferences"]["vibes"] = [
+        "quick",
+        "something-new",
+        "old-favorite",
+        "spicy",
+    ]
+    save_data(data)
+
+    assert load_data()["preferences"]["vibes"] == ["quick", "spicy"]

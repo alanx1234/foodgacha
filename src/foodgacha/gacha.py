@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from collections.abc import Iterable
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any
 
 RARITY_WEIGHTS = {"SSR": 5, "SR": 15, "R": 25, "U": 30, "C": 25}
@@ -15,7 +15,7 @@ RARITY_LABELS = {
     "C": "Common",
 }
 PITY_LIMIT = 10
-HISTORY_VIBES = {"something-new", "old-favorite"}
+REMOVED_VIBES = {"something-new", "old-favorite"}
 
 CUISINE_ALIASES = {
     "american": {"american", "burger", "burgers", "steak", "wings"},
@@ -143,11 +143,6 @@ def match_score(
         for key, value in (business.get("tags") or {}).items()
     }
     normalized_vibes = normalize_vibes(vibes)
-    history_ids = {str(entry.get("id")) for entry in history}
-    visited_ids = {
-        str(entry.get("id")) for entry in history if entry.get("visited") is True
-    }
-    business_id = str(business.get("id"))
 
     requested_cuisines = {cuisine.lower() for cuisine in cuisines}
     if any(
@@ -165,8 +160,6 @@ def match_score(
             business,
             business_cuisines,
             tags,
-            business_id in history_ids,
-            business_id in visited_ids,
         )
     ]
     if matched_vibes:
@@ -191,10 +184,6 @@ def match_score(
         score += metadata_points
         reasons.append("helpful place details")
 
-    if business_id in visited_ids and "old-favorite" not in normalized_vibes:
-        score -= 20
-        reasons.append("visited before")
-
     return max(0, min(score, 100)), reasons
 
 
@@ -203,42 +192,19 @@ def filter_candidates(
     history: list[dict[str, Any]],
     vibes: list[str],
 ) -> list[dict[str, Any]]:
-    normalized_vibes = normalize_vibes(vibes)
-    recent_ids = (
-        set()
-        if "old-favorite" in normalized_vibes
-        else _recently_visited_ids(history)
-    )
-    known_ids = {str(item.get("id")) for item in history}
-    favorite_ids = {
+    visited_ids = {
         str(item.get("id")) for item in history if item.get("visited") is True
     }
 
-    candidates = [
+    return [
         business
         for business in businesses
-        if str(business.get("id")) not in recent_ids
+        if str(business.get("id")) not in visited_ids
     ]
-    if "something-new" in normalized_vibes:
-        candidates = [
-            business
-            for business in candidates
-            if str(business.get("id")) not in known_ids
-        ]
-    if "old-favorite" in normalized_vibes:
-        candidates = [
-            business
-            for business in candidates
-            if str(business.get("id")) in favorite_ids
-        ]
-    return candidates
 
 
 def normalize_vibes(vibes: list[str]) -> set[str]:
-    normalized = {vibe.lower() for vibe in vibes}
-    if HISTORY_VIBES <= normalized:
-        normalized -= HISTORY_VIBES
-    return normalized
+    return {vibe.lower() for vibe in vibes} - REMOVED_VIBES
 
 
 def history_entry(
@@ -279,28 +245,11 @@ def _available_tier(
     return next((tier for tier in fallback_order if buckets[tier]), None)
 
 
-def _recently_visited_ids(history: list[dict[str, Any]]) -> set[str]:
-    cutoff = date.today() - timedelta(days=7)
-    recent: set[str] = set()
-    for item in history:
-        if not item.get("visited"):
-            continue
-        try:
-            visited_date = date.fromisoformat(str(item.get("date")))
-        except ValueError:
-            continue
-        if visited_date >= cutoff:
-            recent.add(str(item.get("id")))
-    return recent
-
-
 def _matches_vibe(
     vibe: str,
     business: dict[str, Any],
     cuisines: set[str],
     tags: dict[str, str],
-    known: bool,
-    visited: bool,
 ) -> bool:
     distance_miles = float(business.get("distance") or 0) / 1609.344
     if vibe == "quick":
@@ -311,10 +260,6 @@ def _matches_vibe(
         )
     if vibe == "sit-down":
         return business.get("amenity") == "restaurant"
-    if vibe == "something-new":
-        return not known
-    if vibe == "old-favorite":
-        return visited
     if vibe == "spicy":
         return bool(cuisines & SPICY_CUISINES)
     if vibe == "light":

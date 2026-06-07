@@ -38,8 +38,6 @@ PRICE_CARDS = [
 VIBE_CARDS = [
     Card("Quick Bite", "quick", "nearby options get a boost"),
     Card("Sit-down", "sit-down", "restaurant categories get a boost"),
-    Card("Something New", "something-new", "skip every place in your history"),
-    Card("Old Favorite", "old-favorite", "only previously visited places"),
     Card("Spicy", "spicy", "spicy cuisines get a boost"),
     Card("Light", "light", "lighter cuisines get a boost"),
     Card("Filling", "filling", "hearty cuisines get a boost"),
@@ -92,4 +90,3 @@ def _run_round(
             if key in {readchar.key.CTRL_C, "q", "Q"}:
                 raise KeyboardInterrupt
     return selected
-
