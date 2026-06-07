@@ -6,8 +6,11 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Annotated, Any
 
 import typer
+from rich.align import Align
 from rich.console import Console
+from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
 from foodgacha import __version__
 from foodgacha.gacha import (
@@ -127,27 +130,16 @@ def pull(
     if selected.get("fallback_note"):
         console.print(f"[yellow]{selected['fallback_note']}[/yellow]")
 
-    stars = {"SSR": "*****", "SR": "****", "R": "***", "U": "**", "C": "*"}[
-        rarity
-    ]
-    rarity_label = RARITY_LABELS[rarity]
-    console.print(
-        f"\n[bold magenta]{stars}  {rarity_label}  {stars}[/bold magenta]"
-    )
     time.sleep(0.8)
     entry = history_entry(selected, rarity)
-    console.print(f"\n[bold]{entry['name']}[/bold]")
     console.print(
-        f"{entry['cuisine']}  |  {entry['price'] or 'price unknown'}  |  "
-        f"{entry['distance_miles']:.1f} mi"
+        _pull_result_panel(
+            entry,
+            rarity,
+            display_location,
+            pity,
+        )
     )
-    console.print(f"match score: {entry['match_score']} / 100")
-    if entry["match_reasons"]:
-        console.print(f"[dim]{', '.join(entry['match_reasons'])}[/dim]")
-    if entry["url"]:
-        console.print(f"[link={entry['url']}]{entry['url']}[/link]")
-    console.print(f"[dim]Near {display_location} | © OpenStreetMap contributors[/dim]")
-    console.print(f"\nPity counter: {pity} / {PITY_LIMIT}")
 
     data["pity_counter"] = pity
     data.setdefault("history", []).append(entry)
@@ -361,6 +353,74 @@ def _format_prices(values: list[int]) -> str:
 
 def _percent(part: int, whole: int) -> str:
     return f"{part / whole * 100:.1f}%" if whole else "0.0%"
+
+
+def _pull_result_panel(
+    entry: dict[str, Any],
+    rarity: str,
+    display_location: str,
+    pity: int,
+) -> Panel:
+    rarity_styles = {
+        "SSR": "bold bright_yellow",
+        "SR": "bold bright_magenta",
+        "R": "bold bright_cyan",
+        "U": "bold bright_green",
+        "C": "bold white",
+    }
+    style = rarity_styles[rarity]
+    score = int(entry.get("match_score", 0))
+    filled = min(score // 5, 20)
+    score_bar = f"[{'#' * filled}{'.' * (20 - filled)}]"
+
+    details = Table.grid(padding=(0, 1))
+    details.add_column(style="bold cyan", justify="right")
+    details.add_column()
+    details.add_row("Cuisine", str(entry.get("cuisine", "Restaurant")))
+    details.add_row("Price", str(entry.get("price") or "Unknown"))
+    details.add_row("Distance", f"{float(entry.get('distance_miles', 0)):.1f} mi")
+    details.add_row("Match", Text(f"{score}/100  {score_bar}"))
+    details.add_row("Pity", f"{pity}/{PITY_LIMIT}")
+
+    body = Table.grid(expand=True)
+    body.add_row(
+        Align.center(Text(str(entry.get("name", "Unknown restaurant")), style="bold"))
+    )
+    body.add_row("")
+    body.add_row(Align.center(details))
+
+    reasons = entry.get("match_reasons") or []
+    if reasons:
+        body.add_row("")
+        body.add_row(
+            Align.center(
+                Text("Matched: " + " | ".join(str(reason) for reason in reasons), style="dim")
+            )
+        )
+    if entry.get("url"):
+        body.add_row("")
+        body.add_row(
+            Align.center(
+                Text.from_markup(f"[link={entry['url']}]{entry['url']}[/link]")
+            )
+        )
+    body.add_row("")
+    body.add_row(
+        Align.center(
+            Text(
+                f"Near {display_location} | © OpenStreetMap contributors",
+                style="dim",
+            )
+        )
+    )
+
+    return Panel(
+        body,
+        title=Text(f"{RARITY_LABELS[rarity]} PULL", style=style),
+        subtitle="foodgacha",
+        border_style=style,
+        padding=(1, 2),
+    )
 
 
 if __name__ == "__main__":

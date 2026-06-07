@@ -15,6 +15,12 @@ class Card:
     detail: str = ""
 
 
+@dataclass(frozen=True)
+class RoundResult:
+    selected: list[str | int]
+    finished: bool = False
+
+
 CUISINE_CARDS = [
     Card("Japanese", "japanese"),
     Card("Korean", "korean"),
@@ -109,19 +115,35 @@ DISH_CARDS_BY_CUISINE = {
 
 def collect_preferences(console: Console) -> dict[str, list[str] | list[int]]:
     console.print(
-        "[bold]Swipe with left/right arrows. You can also press n/y.[/bold]\n"
+        "[bold]Swipe with left/right arrows or n/y.[/bold]\n"
+        "[dim]Press Enter anytime to save your choices and finish early.[/dim]\n"
     )
-    cuisines = _run_round(console, "Round 1: cuisines", CUISINE_CARDS)
-    prices = _run_round(console, "Round 2: prices", PRICE_CARDS)
-    vibes = _run_round(console, "Round 3: vibes", VIBE_CARDS)
-    dish_cards = dish_cards_for([str(value) for value in cuisines])
-    dishes = _run_round(console, "Round 4: specific dishes", dish_cards)
-    return {
-        "cuisines": [str(value) for value in cuisines],
-        "price": [int(value) for value in prices],
-        "vibes": [str(value) for value in vibes],
-        "dishes": [str(value) for value in dishes],
+    preferences: dict[str, list[str] | list[int]] = {
+        "cuisines": [],
+        "price": [],
+        "vibes": [],
+        "dishes": [],
     }
+
+    cuisines = _run_round(console, "Round 1: cuisines", CUISINE_CARDS)
+    preferences["cuisines"] = [str(value) for value in cuisines.selected]
+    if cuisines.finished:
+        return preferences
+
+    prices = _run_round(console, "Round 2: prices", PRICE_CARDS)
+    preferences["price"] = [int(value) for value in prices.selected]
+    if prices.finished:
+        return preferences
+
+    vibes = _run_round(console, "Round 3: vibes", VIBE_CARDS)
+    preferences["vibes"] = [str(value) for value in vibes.selected]
+    if vibes.finished:
+        return preferences
+
+    dish_cards = dish_cards_for([str(value) for value in cuisines.selected])
+    dishes = _run_round(console, "Round 4: specific dishes", dish_cards)
+    preferences["dishes"] = [str(value) for value in dishes.selected]
+    return preferences
 
 
 def dish_cards_for(cuisines: list[str]) -> list[Card]:
@@ -139,7 +161,7 @@ def _run_round(
     console: Console,
     title: str,
     cards: list[Card],
-) -> list[str | int]:
+) -> RoundResult:
     selected: list[str | int] = []
     for index, card in enumerate(cards, start=1):
         while True:
@@ -147,7 +169,10 @@ def _run_round(
             content = f"[bold]{card.label}[/bold]"
             if card.detail:
                 content += f"\n[dim]{card.detail}[/dim]"
-            content += "\n\n[dim]left/n: skip    right/y: keep[/dim]"
+            content += (
+                "\n\n[dim]left/n: skip    right/y: keep[/dim]"
+                "\n[bold cyan]Enter: save and finish[/bold cyan]"
+            )
             console.print(
                 Panel(
                     Align.center(content, vertical="middle"),
@@ -164,6 +189,8 @@ def _run_round(
                 break
             if key in {readchar.key.LEFT, "n", "N"}:
                 break
+            if key in {readchar.key.ENTER, "\n", "\r"}:
+                return RoundResult(selected=selected, finished=True)
             if key in {readchar.key.CTRL_C, "q", "Q"}:
                 raise KeyboardInterrupt
-    return selected
+    return RoundResult(selected=selected)
