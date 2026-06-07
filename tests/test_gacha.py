@@ -170,7 +170,7 @@ def test_requested_cuisines_narrow_candidates_when_matches_exist() -> None:
     assert selected["id"] == "Ramen Place"
 
 
-def test_visited_restaurants_are_always_excluded() -> None:
+def test_all_previously_pulled_restaurants_are_excluded() -> None:
     restaurants = [business("visited"), business("unvisited-pull"), business("new")]
     history = [
         {
@@ -187,7 +187,7 @@ def test_visited_restaurants_are_always_excluded() -> None:
 
     candidates = filter_candidates(restaurants, history, [])
 
-    assert [item["id"] for item in candidates] == ["unvisited-pull", "new"]
+    assert [item["id"] for item in candidates] == ["new"]
 
 
 def test_removed_history_vibes_are_ignored_for_legacy_profiles() -> None:

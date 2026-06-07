@@ -28,6 +28,7 @@ def test_pull_panel_contains_key_result_details() -> None:
     assert "SSR PULL" in output
     assert "Ramen House" in output
     assert "85/100" in output
-    assert "#################" in output
+    assert "Distance" not in output
+    assert "0.8 mi" not in output
     assert "specific dish match: ramen" in output
     assert "OpenStreetMap contributors" in output

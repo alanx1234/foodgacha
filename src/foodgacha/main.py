@@ -122,8 +122,9 @@ def pull(
     )
     if selected is None or rarity is None:
         console.print(
-            "[yellow]No restaurants matched your vibe.[/yellow]\n"
-            "Try [bold]foodgacha swipe[/bold] to loosen your preferences."
+            "[yellow]No new restaurants are available in this search area.[/yellow]\n"
+            "Try a different [bold]--location[/bold] or wait for the local "
+            "OpenStreetMap data to change."
         )
         raise typer.Exit(1)
 
@@ -370,16 +371,13 @@ def _pull_result_panel(
     }
     style = rarity_styles[rarity]
     score = int(entry.get("match_score", 0))
-    filled = min(score // 5, 20)
-    score_bar = f"[{'#' * filled}{'.' * (20 - filled)}]"
 
     details = Table.grid(padding=(0, 1))
     details.add_column(style="bold cyan", justify="right")
     details.add_column()
     details.add_row("Cuisine", str(entry.get("cuisine", "Restaurant")))
     details.add_row("Price", str(entry.get("price") or "Unknown"))
-    details.add_row("Distance", f"{float(entry.get('distance_miles', 0)):.1f} mi")
-    details.add_row("Match", Text(f"{score}/100  {score_bar}"))
+    details.add_row("Match", f"{score}/100")
     details.add_row("Pity", f"{pity}/{PITY_LIMIT}")
 
     body = Table.grid(expand=True)

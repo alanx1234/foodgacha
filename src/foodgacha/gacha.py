@@ -286,14 +286,12 @@ def filter_candidates(
     history: list[dict[str, Any]],
     vibes: list[str],
 ) -> list[dict[str, Any]]:
-    visited_ids = {
-        str(item.get("id")) for item in history if item.get("visited") is True
-    }
+    pulled_ids = {str(item.get("id")) for item in history}
 
     return [
         business
         for business in businesses
-        if str(business.get("id")) not in visited_ids
+        if str(business.get("id")) not in pulled_ids
     ]
 
 
