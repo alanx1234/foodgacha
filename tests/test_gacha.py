@@ -3,42 +3,89 @@ from __future__ import annotations
 import random
 from datetime import date
 
-from foodgacha.gacha import choose_restaurant, filter_candidates, rarity_for
+from foodgacha.gacha import (
+    choose_restaurant,
+    filter_candidates,
+    match_score,
+    rarity_for,
+)
 
 
 def business(
     identifier: str,
-    rating: float,
-    reviews: int,
-    alias: str = "restaurants",
+    cuisine: str = "",
+    distance: float = 5000,
+    amenity: str = "restaurant",
+    tags: dict[str, str] | None = None,
 ) -> dict[str, object]:
     return {
         "id": identifier,
         "name": identifier,
-        "rating": rating,
-        "review_count": reviews,
-        "categories": [{"alias": alias, "title": alias.title()}],
-        "distance": 1000,
+        "cuisines": [cuisine] if cuisine else [],
+        "cuisine": cuisine.title() if cuisine else "Restaurant",
+        "amenity": amenity,
+        "tags": tags or {},
+        "distance": distance,
+        "price_level": None,
     }
 
 
 def test_rarity_rules() -> None:
-    assert rarity_for(business("excellent", 4.5, 200)) == "SSR"
-    assert rarity_for(business("strong", 4.2, 150)) == "SR"
-    assert rarity_for(business("popular", 3.4, 100)) == "R"
-    assert rarity_for(business("high-rated", 4.0, 5)) == "R"
-    assert rarity_for(business("uncommon", 3.5, 25)) == "U"
-    assert rarity_for(business("common", 3.4, 24)) == "C"
+    assert rarity_for(85) == "SSR"
+    assert rarity_for(70) == "SR"
+    assert rarity_for(50) == "R"
+    assert rarity_for(30) == "U"
+    assert rarity_for(29) == "C"
+
+
+def test_match_score_rewards_preferences_distance_and_metadata() -> None:
+    restaurant = business(
+        "great-match",
+        cuisine="ramen",
+        distance=1000,
+        tags={
+            "opening_hours": "Mo-Su 11:00-22:00",
+            "website": "https://example.com",
+            "phone": "555-0100",
+            "takeaway": "yes",
+            "delivery": "yes",
+        },
+    )
+
+    score, reasons = match_score(
+        restaurant,
+        cuisines=["japanese"],
+        prices=[],
+        vibes=["sit-down", "filling"],
+        history=[],
+    )
+
+    assert score == 95
+    assert "cuisine match" in reasons
+    assert "within two miles" in reasons
 
 
 def test_pity_forces_ssr_when_available() -> None:
     selected, rarity, pity = choose_restaurant(
         [
-            business("ssr", 4.8, 500),
-            business("common", 3.0, 10),
+            business(
+                "ssr",
+                cuisine="ramen",
+                distance=1000,
+                tags={
+                    "opening_hours": "yes",
+                    "website": "yes",
+                    "phone": "yes",
+                    "takeaway": "yes",
+                    "delivery": "yes",
+                },
+            ),
+            business("common"),
         ],
         pity_counter=9,
         history=[],
+        cuisines=["japanese"],
+        vibes=["sit-down", "filling"],
         rng=random.Random(1),
     )
     assert selected is not None
@@ -49,7 +96,7 @@ def test_pity_forces_ssr_when_available() -> None:
 
 def test_pity_remains_active_without_ssr_candidate() -> None:
     selected, rarity, pity = choose_restaurant(
-        [business("common", 3.0, 10)],
+        [business("common")],
         pity_counter=9,
         history=[],
         rng=random.Random(1),
@@ -60,27 +107,20 @@ def test_pity_remains_active_without_ssr_candidate() -> None:
 
 
 def test_history_vibes_filter_candidates() -> None:
-    restaurants = [
-        business("known", 4.0, 10),
-        business("new", 4.0, 10),
-    ]
-    history = [
-        {
-            "id": "known",
-            "visited": True,
-            "date": "2020-01-01",
-        }
-    ]
-    assert [item["id"] for item in filter_candidates(
-        restaurants, history, ["something-new"]
-    )] == ["new"]
-    assert [item["id"] for item in filter_candidates(
-        restaurants, history, ["old-favorite"]
-    )] == ["known"]
+    restaurants = [business("known"), business("new")]
+    history = [{"id": "known", "visited": True, "date": "2020-01-01"}]
+    assert [
+        item["id"]
+        for item in filter_candidates(restaurants, history, ["something-new"])
+    ] == ["new"]
+    assert [
+        item["id"]
+        for item in filter_candidates(restaurants, history, ["old-favorite"])
+    ] == ["known"]
 
 
 def test_recently_visited_restaurant_is_excluded() -> None:
-    restaurants = [business("recent", 4.0, 10)]
+    restaurants = [business("recent")]
     history = [
         {
             "id": "recent",

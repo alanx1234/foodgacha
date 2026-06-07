@@ -1,8 +1,8 @@
 # foodgacha
 
 foodgacha is a Python command-line tool that combines restaurant recommendations
-with gacha pulls and dating app mechanics. I chose this idea because I'm
-terrible at finding new places to eat.
+with gacha pulls and dating app mechanics. I chose this idea because I suck
+at finding new places to eat and also cause I love food.
 
 ## Usage
 
@@ -38,50 +38,69 @@ Run `foodgacha --help` or `foodgacha COMMAND --help` for every option.
 
 ## Installation
 
-foodgacha requires Python 3.11 or newer, [uv](https://docs.astral.sh/uv/), and
-a Yelp API key.
+foodgacha requires Python 3.11 or newer and
+[uv](https://docs.astral.sh/uv/). It uses OpenStreetMap and does not require an
+API key or paid account.
 
-1. Create an API key in the
-   [Yelp developer portal](https://docs.developer.yelp.com/docs/fusion-authentication).
-2. Make the key available in your shell:
+Install the command directly from GitHub:
 
-   ```console
-   $ export YELP_API_KEY="your-key-here"
-   ```
-
-3. Install the command directly from GitHub:
-
-   ```console
-   $ uv add "git+https://github.com/alanx1234/foodgacha.git"
-   $ uv run foodgacha --help
-   ```
+```console
+$ uv add "git+https://github.com/alanx1234/foodgacha.git"
+$ uv run foodgacha --help
+```
 
 ## How Recommendations Work
 
-Each Yelp result is placed into a rarity tier:
+Foodgacha uses OpenStreetMap to turn your location into coordinates and find
+nearby restaurants, cafes, fast-food places, and food courts. Location lookups
+are cached locally, and restaurant results are reused for six hours to avoid
+unnecessary requests to community-run services.
 
-| Tier | Rule | Pull rate |
-| --- | --- | ---: |
-| SSR | Yelp rating at least 4.5 and at least 200 reviews | 5% |
-| SR | Yelp rating at least 4.0 and at least 100 reviews | 15% |
-| R | Yelp rating at least 4.0 or at least 100 reviews | 25% |
-| U (Uncommon) | Yelp rating at least 3.5 or at least 25 reviews | 30% |
-| C (Common) | Every other result | 25% |
-
-Every non-SSR result raises the pity counter, a popular mechanic in gacha
-games. When the counter reaches nine, the next pull is guaranteed to be SSR
-when the current search contains an SSR candidate. If Yelp returns no SSR
-candidate, foodgacha chooses from the available tiers and keeps the pity
-counter active for a future pull.
+### Swiping
 
 The swipe feature works like a terminal-based dating app. Press the right arrow
 or `y` to keep a cuisine, price, or vibe, and press the left arrow or `n` to
-skip it. Foodgacha saves your choices for future pulls: cuisines and prices
-filter Yelp results, while vibes filter or increase the weight of matching
-restaurants.
+skip it. Foodgacha saves your choices for future pulls and uses them to find
+restaurants that fit what you are in the mood for.
+
+### Rarity Tiers
+
+Rarity describes how well a restaurant matches **you**, not whether the
+restaurant is objectively good or bad. A Common result can still be a great
+restaurant; it simply matched fewer of your current preferences.
+
+Foodgacha gives each nearby restaurant match points:
+
+- Exact cuisine match: **+40 points**
+- Each matching vibe: **+15 points**
+- Matching price preference, when available: **+10 points**
+- Within two miles: **+15 points**
+- Helpful details such as hours, a website, takeaway, or accessibility:
+  **up to +10 points**
+- Previously visited: **-20 points**, unless you selected Old Favorite
+
+The final score determines the restaurant's tier:
+
+| Tier | Match score | Pull rate | What it means |
+| --- | ---: | ---: | --- |
+| SSR | 85-100 | 5% | An almost perfect match |
+| SR | 70-84 | 15% | A very strong match |
+| Rare | 50-69 | 25% | A solid match |
+| Uncommon | 30-49 | 30% | Matches some preferences |
+| Common | 0-29 | 25% | A nearby wildcard |
+
+Every non-SSR result raises the pity counter. When the counter reaches nine,
+the next pull is guaranteed to be SSR when the current search contains an SSR
+match. This is a popular mechanic in gacha games. If that search has no SSR
+matches, foodgacha chooses from the available tiers and keeps the pity counter
+active for a future pull.
 
 Restaurants marked as visited in the last seven days are excluded. "Something
 New" excludes every restaurant already in your history, while "Old Favorite"
-only permits previously visited restaurants. Other vibes boost likely matches
-within a rarity tier because Yelp does not expose exact filters for concepts
-such as "filling" or "quick."
+only permits previously visited restaurants.
+
+Restaurant and location data is provided by
+[OpenStreetMap contributors](https://www.openstreetmap.org/copyright) under the
+Open Data Commons Open Database License. Public OpenStreetMap services are
+best-effort resources, so occasional timeouts may require trying the pull
+again.

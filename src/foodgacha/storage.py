@@ -16,6 +16,8 @@ def data_path() -> Path:
 def default_data() -> dict[str, Any]:
     return {
         "location": "",
+        "geocache": {},
+        "restaurant_cache": {},
         "pity_counter": 0,
         "preferences": {"cuisines": [], "price": [], "vibes": []},
         "history": [],
@@ -39,6 +41,10 @@ def load_data() -> dict[str, Any]:
         data["preferences"] = default_data()["preferences"]
     if not isinstance(data.get("history"), list):
         data["history"] = []
+    if not isinstance(data.get("geocache"), dict):
+        data["geocache"] = {}
+    if not isinstance(data.get("restaurant_cache"), dict):
+        data["restaurant_cache"] = {}
     return data
 
 
@@ -51,4 +57,3 @@ def save_data(data: dict[str, Any]) -> None:
         encoding="utf-8",
     )
     temporary.replace(path)
-

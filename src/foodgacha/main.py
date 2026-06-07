@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 from collections import Counter
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from typing import Annotated, Any
 
 import typer
@@ -16,9 +16,13 @@ from foodgacha.gacha import (
     choose_restaurant,
     history_entry,
 )
+from foodgacha.openstreetmap import (
+    OpenStreetMapError,
+    geocode_location,
+    search_restaurants,
+)
 from foodgacha.storage import load_data, save_data
 from foodgacha.swipe import collect_preferences
-from foodgacha.yelp import YelpError, search_businesses
 
 app = typer.Typer(
     help="Choose where to eat with preferences, rarity tiers, and a pity counter.",
@@ -77,7 +81,7 @@ def pull(
         typer.Option(min=1, max=4, help="Override saved prices. Repeat for more than one."),
     ] = None,
 ) -> None:
-    """Pull a restaurant recommendation from Yelp."""
+    """Pull a nearby restaurant recommendation from OpenStreetMap."""
     data = load_data()
     if not location:
         _ensure_location(data)
@@ -87,10 +91,14 @@ def pull(
     vibes = list(preferences.get("vibes", []))
     search_location = location or str(data["location"])
 
-    console.print("[dim]Searching Yelp and rolling...[/dim]")
+    console.print("[dim]Searching OpenStreetMap and rolling...[/dim]")
     try:
-        businesses = search_businesses(search_location, cuisines, prices)
-    except YelpError as exc:
+        latitude, longitude, display_location = _coordinates_for(
+            data,
+            search_location,
+        )
+        businesses = _restaurants_for(data, latitude, longitude)
+    except OpenStreetMapError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
@@ -98,7 +106,9 @@ def pull(
         businesses,
         int(data.get("pity_counter", 0)),
         list(data.get("history", [])),
-        vibes,
+        cuisines=cuisines,
+        prices=prices,
+        vibes=vibes,
     )
     if selected is None or rarity is None:
         console.print(
@@ -121,11 +131,12 @@ def pull(
         f"{entry['cuisine']}  |  {entry['price'] or 'price unknown'}  |  "
         f"{entry['distance_miles']:.1f} mi"
     )
-    console.print(
-        f"{entry['yelp_rating']} on Yelp ({entry['review_count']} reviews)"
-    )
+    console.print(f"match score: {entry['match_score']} / 100")
+    if entry["match_reasons"]:
+        console.print(f"[dim]{', '.join(entry['match_reasons'])}[/dim]")
     if entry["url"]:
         console.print(f"[link={entry['url']}]{entry['url']}[/link]")
+    console.print(f"[dim]Near {display_location} | © OpenStreetMap contributors[/dim]")
     console.print(f"\nPity counter: {pity} / {PITY_LIMIT}")
 
     data["pity_counter"] = pity
@@ -135,7 +146,10 @@ def pull(
 
 @app.command()
 def visit(
-    name_or_id: Annotated[str, typer.Argument(help="Restaurant name fragment or Yelp ID.")],
+    name_or_id: Annotated[
+        str,
+        typer.Argument(help="Restaurant name fragment or OpenStreetMap ID."),
+    ],
     rating: Annotated[int, typer.Option(min=1, max=10)],
     notes: Annotated[str, typer.Option()] = "",
 ) -> None:
@@ -226,7 +240,7 @@ def stats() -> None:
 
 @app.command()
 def config(
-    location: Annotated[str, typer.Option(prompt=True, help="Default Yelp location.")],
+    location: Annotated[str, typer.Option(prompt=True, help="Default search location.")],
 ) -> None:
     """Update the saved default location."""
     data = load_data()
@@ -245,6 +259,58 @@ def _ensure_location(data: dict[str, Any]) -> None:
         raise typer.Exit(1)
     data["location"] = location.strip()
     save_data(data)
+
+
+def _coordinates_for(
+    data: dict[str, Any],
+    location: str,
+) -> tuple[float, float, str]:
+    cache = data.setdefault("geocache", {})
+    cache_key = location.strip().casefold()
+    cached = cache.get(cache_key)
+    if isinstance(cached, dict):
+        try:
+            return (
+                float(cached["latitude"]),
+                float(cached["longitude"]),
+                str(cached["display_name"]),
+            )
+        except (KeyError, TypeError, ValueError):
+            pass
+
+    latitude, longitude, display_name = geocode_location(location)
+    cache[cache_key] = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "display_name": display_name,
+    }
+    save_data(data)
+    return latitude, longitude, display_name
+
+
+def _restaurants_for(
+    data: dict[str, Any],
+    latitude: float,
+    longitude: float,
+) -> list[dict[str, Any]]:
+    cache = data.setdefault("restaurant_cache", {})
+    cache_key = f"{latitude:.4f},{longitude:.4f}"
+    cached = cache.get(cache_key)
+    if isinstance(cached, dict) and isinstance(cached.get("restaurants"), list):
+        try:
+            fetched_at = datetime.fromisoformat(str(cached["fetched_at"]))
+            if datetime.now(timezone.utc) - fetched_at <= timedelta(hours=6):
+                return list(cached["restaurants"])
+        except (KeyError, TypeError, ValueError):
+            pass
+
+    restaurants = search_restaurants(latitude, longitude)
+    cache[cache_key] = {
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+        "restaurants": restaurants,
+    }
+    save_data(data)
+    return restaurants
 
 
 def _history_matches(

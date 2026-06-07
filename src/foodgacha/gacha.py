@@ -16,17 +16,67 @@ RARITY_LABELS = {
 }
 PITY_LIMIT = 10
 
+CUISINE_ALIASES = {
+    "american": {"american", "burger", "burgers", "steak", "wings"},
+    "chinese": {"chinese", "dim_sum", "hotpot", "noodle", "szechuan"},
+    "indian": {"indian", "indian_sweet", "nepalese", "pakistani"},
+    "italian": {"italian", "pasta", "pizza"},
+    "japanese": {"japanese", "ramen", "sushi", "udon"},
+    "korean": {"korean", "korean_barbecue"},
+    "mediterranean": {"greek", "mediterranean", "middle_eastern"},
+    "mexican": {"burrito", "mexican", "taco"},
+    "thai": {"thai"},
+    "vietnamese": {"pho", "vietnamese"},
+}
 
-def rarity_for(business: dict[str, Any]) -> str:
-    rating = float(business.get("rating") or 0)
-    reviews = int(business.get("review_count") or 0)
-    if rating >= 4.5 and reviews >= 200:
+SPICY_CUISINES = {
+    "hotpot",
+    "indian",
+    "korean",
+    "mexican",
+    "szechuan",
+    "thai",
+}
+LIGHT_CUISINES = {
+    "greek",
+    "japanese",
+    "mediterranean",
+    "salad",
+    "sushi",
+    "vegetarian",
+    "vietnamese",
+}
+FILLING_CUISINES = {
+    "american",
+    "barbecue",
+    "burger",
+    "burgers",
+    "hotpot",
+    "pasta",
+    "pizza",
+    "ramen",
+    "steak",
+}
+METADATA_GROUPS = (
+    ("opening_hours",),
+    ("website", "contact:website"),
+    ("phone", "contact:phone"),
+    ("takeaway",),
+    ("delivery",),
+    ("outdoor_seating",),
+    ("wheelchair",),
+    ("reservation",),
+)
+
+
+def rarity_for(score: int) -> str:
+    if score >= 85:
         return "SSR"
-    if rating >= 4.0 and reviews >= 100:
+    if score >= 70:
         return "SR"
-    if rating >= 4.0 or reviews >= 100:
+    if score >= 50:
         return "R"
-    if rating >= 3.5 or reviews >= 25:
+    if score >= 30:
         return "U"
     return "C"
 
@@ -35,6 +85,8 @@ def choose_restaurant(
     businesses: Iterable[dict[str, Any]],
     pity_counter: int,
     history: list[dict[str, Any]],
+    cuisines: list[str] | None = None,
+    prices: list[int] | None = None,
     vibes: list[str] | None = None,
     rng: random.Random | None = None,
 ) -> tuple[dict[str, Any] | None, str | None, int]:
@@ -42,7 +94,15 @@ def choose_restaurant(
     candidates = filter_candidates(list(businesses), history, vibes or [])
     buckets = {rarity: [] for rarity in RARITY_ORDER}
     for business in candidates:
-        buckets[rarity_for(business)].append(business)
+        score, reasons = match_score(
+            business,
+            cuisines or [],
+            prices or [],
+            vibes or [],
+            history,
+        )
+        scored_business = {**business, "match_score": score, "match_reasons": reasons}
+        buckets[rarity_for(score)].append(scored_business)
 
     pity_triggered = pity_counter >= PITY_LIMIT - 1
     if pity_triggered and buckets["SSR"]:
@@ -59,13 +119,82 @@ def choose_restaurant(
         return None, None, pity_counter
 
     tier_candidates = buckets[selected_tier]
-    selected = randomizer.choices(
-        tier_candidates,
-        weights=[_vibe_weight(item, vibes or []) for item in tier_candidates],
-        k=1,
-    )[0]
+    selected = randomizer.choice(tier_candidates)
     new_pity = 0 if selected_tier == "SSR" else pity_counter + 1
     return selected, selected_tier, new_pity
+
+
+def match_score(
+    business: dict[str, Any],
+    cuisines: list[str],
+    prices: list[int],
+    vibes: list[str],
+    history: list[dict[str, Any]],
+) -> tuple[int, list[str]]:
+    score = 0
+    reasons: list[str] = []
+    business_cuisines = {
+        str(cuisine).lower().replace(" ", "_")
+        for cuisine in business.get("cuisines") or []
+    }
+    tags = {
+        str(key): str(value).lower()
+        for key, value in (business.get("tags") or {}).items()
+    }
+    normalized_vibes = {vibe.lower() for vibe in vibes}
+    history_ids = {str(entry.get("id")) for entry in history}
+    visited_ids = {
+        str(entry.get("id")) for entry in history if entry.get("visited") is True
+    }
+    business_id = str(business.get("id"))
+
+    requested_cuisines = {cuisine.lower() for cuisine in cuisines}
+    if any(
+        business_cuisines & CUISINE_ALIASES.get(cuisine, {cuisine})
+        for cuisine in requested_cuisines
+    ):
+        score += 40
+        reasons.append("cuisine match")
+
+    matched_vibes = [
+        vibe
+        for vibe in normalized_vibes
+        if _matches_vibe(
+            vibe,
+            business,
+            business_cuisines,
+            tags,
+            business_id in history_ids,
+            business_id in visited_ids,
+        )
+    ]
+    if matched_vibes:
+        score += 15 * len(matched_vibes)
+        reasons.extend(f"{vibe.replace('-', ' ')} vibe" for vibe in matched_vibes)
+
+    price_level = business.get("price_level")
+    if price_level is not None and int(price_level) in prices:
+        score += 10
+        reasons.append("price match")
+
+    distance_miles = float(business.get("distance") or 0) / 1609.344
+    if distance_miles <= 2:
+        score += 15
+        reasons.append("within two miles")
+
+    metadata_points = min(
+        sum(any(tags.get(key) for key in group) for group in METADATA_GROUPS) * 2,
+        10,
+    )
+    if metadata_points:
+        score += metadata_points
+        reasons.append("helpful place details")
+
+    if business_id in visited_ids and "old-favorite" not in normalized_vibes:
+        score -= 20
+        reasons.append("visited before")
+
+    return max(0, min(score, 100)), reasons
 
 
 def filter_candidates(
@@ -105,23 +234,23 @@ def history_entry(
     rarity: str,
     pulled_at: datetime | None = None,
 ) -> dict[str, Any]:
-    categories = business.get("categories") or []
-    first_category = categories[0] if categories else {}
     coordinates = business.get("coordinates") or {}
+    price_level = business.get("price_level")
     return {
         "id": business.get("id", ""),
         "name": business.get("name", "Unknown restaurant"),
-        "cuisine": first_category.get("title", "Restaurant"),
+        "cuisine": business.get("cuisine", "Restaurant"),
         "rarity": rarity,
+        "match_score": business.get("match_score", 0),
+        "match_reasons": business.get("match_reasons", []),
         "visited": False,
         "rating_given": None,
         "date": (pulled_at or datetime.now(timezone.utc)).date().isoformat(),
         "notes": "",
-        "yelp_rating": business.get("rating"),
-        "review_count": business.get("review_count", 0),
-        "price": business.get("price", ""),
+        "price": "$" * int(price_level) if price_level else "",
         "distance_miles": round(float(business.get("distance") or 0) / 1609.344, 1),
         "url": business.get("url", ""),
+        "source": "OpenStreetMap",
         "coordinates": {
             "latitude": coordinates.get("latitude"),
             "longitude": coordinates.get("longitude"),
@@ -153,49 +282,31 @@ def _recently_visited_ids(history: list[dict[str, Any]]) -> set[str]:
     return recent
 
 
-def _vibe_weight(business: dict[str, Any], vibes: list[str]) -> float:
-    aliases = {
-        str(category.get("alias", "")).lower()
-        for category in business.get("categories") or []
-        if isinstance(category, dict)
-    }
+def _matches_vibe(
+    vibe: str,
+    business: dict[str, Any],
+    cuisines: set[str],
+    tags: dict[str, str],
+    known: bool,
+    visited: bool,
+) -> bool:
     distance_miles = float(business.get("distance") or 0) / 1609.344
-    weight = 1.0
-    for vibe in vibes:
-        if vibe == "quick" and distance_miles <= 2:
-            weight += 1.5
-        elif vibe == "sit-down" and aliases & {
-            "newamerican",
-            "tradamerican",
-            "italian",
-            "mediterranean",
-        }:
-            weight += 1.0
-        elif vibe == "spicy" and aliases & {
-            "hotpot",
-            "indpak",
-            "korean",
-            "mexican",
-            "szechuan",
-            "thai",
-        }:
-            weight += 1.5
-        elif vibe == "light" and aliases & {
-            "juicebars",
-            "mediterranean",
-            "salad",
-            "sushi",
-            "vegetarian",
-            "vietnamese",
-        }:
-            weight += 1.25
-        elif vibe == "filling" and aliases & {
-            "bbq",
-            "burgers",
-            "hotpot",
-            "pizza",
-            "ramen",
-            "steak",
-        }:
-            weight += 1.25
-    return weight
+    if vibe == "quick":
+        return (
+            business.get("amenity") == "fast_food"
+            or tags.get("takeaway") == "yes"
+            or distance_miles <= 1
+        )
+    if vibe == "sit-down":
+        return business.get("amenity") == "restaurant"
+    if vibe == "something-new":
+        return not known
+    if vibe == "old-favorite":
+        return visited
+    if vibe == "spicy":
+        return bool(cuisines & SPICY_CUISINES)
+    if vibe == "light":
+        return bool(cuisines & LIGHT_CUISINES)
+    if vibe == "filling":
+        return bool(cuisines & FILLING_CUISINES)
+    return False
