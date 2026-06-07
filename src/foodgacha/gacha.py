@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+import re
 from collections.abc import Iterable
 from datetime import datetime, timezone
 from typing import Any
@@ -28,6 +29,49 @@ CUISINE_ALIASES = {
     "mexican": {"burrito", "mexican", "taco"},
     "thai": {"thai"},
     "vietnamese": {"pho", "vietnamese"},
+}
+
+DISH_ALIASES = {
+    "banh_mi": {"banh mi", "bánh mì"},
+    "barbecue": {"barbecue", "bbq"},
+    "bibimbap": {"bibimbap"},
+    "biryani": {"biryani"},
+    "boat_noodles": {"boat noodle", "boat noodles"},
+    "burger": {"burger", "burgers"},
+    "burrito": {"burrito", "burritos"},
+    "chinese_noodles": {"chinese noodle", "chinese noodles", "noodle", "noodles"},
+    "dim_sum": {"dim sum", "dimsum"},
+    "dosa": {"dosa"},
+    "falafel": {"falafel"},
+    "gelato": {"gelato"},
+    "gyro": {"gyro", "gyros"},
+    "hotpot": {"hot pot", "hotpot"},
+    "hummus": {"hummus"},
+    "indian_curry": {"curry", "indian curry"},
+    "katsu": {"katsu", "tonkatsu"},
+    "kebab": {"kebab", "kebap"},
+    "korean_barbecue": {"korean barbecue", "korean bbq", "korean_barbecue"},
+    "korean_fried_chicken": {"korean fried chicken"},
+    "pad_thai": {"pad thai", "pad_thai"},
+    "panini": {"panini", "panino"},
+    "pasta": {"pasta"},
+    "pho": {"pho", "phở"},
+    "pizza": {"pizza"},
+    "quesadilla": {"quesadilla", "quesadillas"},
+    "ramen": {"ramen"},
+    "spring_rolls": {"spring roll", "spring rolls"},
+    "steak": {"steak", "steakhouse"},
+    "sushi": {"sushi"},
+    "szechuan": {"sichuan", "szechuan"},
+    "taco": {"taco", "tacos"},
+    "tamale": {"tamale", "tamales"},
+    "tandoori": {"tandoori"},
+    "thai_curry": {"thai curry"},
+    "tom_yum": {"tom yum", "tom_yum"},
+    "tteokbokki": {"tteokbokki", "topokki"},
+    "udon": {"udon"},
+    "vermicelli": {"vermicelli"},
+    "wings": {"chicken wings", "wings"},
 }
 
 SPICY_CUISINES = {
@@ -87,17 +131,44 @@ def choose_restaurant(
     pity_counter: int,
     history: list[dict[str, Any]],
     cuisines: list[str] | None = None,
+    dishes: list[str] | None = None,
     prices: list[int] | None = None,
     vibes: list[str] | None = None,
     rng: random.Random | None = None,
 ) -> tuple[dict[str, Any] | None, str | None, int]:
     randomizer = rng or random.Random()
     candidates = filter_candidates(list(businesses), history, vibes or [])
+    fallback_note = ""
+    dish_candidates = [
+        business
+        for business in candidates
+        if matches_requested_dish(business, dishes or [])
+    ]
+    if dish_candidates:
+        candidates = dish_candidates
+    else:
+        cuisine_candidates = [
+            business
+            for business in candidates
+            if matches_requested_cuisine(business, cuisines or [])
+        ]
+        if cuisine_candidates:
+            candidates = cuisine_candidates
+            if dishes:
+                fallback_note = (
+                    "No exact dish tags were found nearby, so cuisine matches were used."
+                )
+        elif dishes or cuisines:
+            fallback_note = (
+                "No requested dish or cuisine tags were found nearby, so other "
+                "preferences were used."
+            )
     buckets = {rarity: [] for rarity in RARITY_ORDER}
     for business in candidates:
         score, reasons = match_score(
             business,
             cuisines or [],
+            dishes or [],
             prices or [],
             vibes or [],
             history,
@@ -121,6 +192,8 @@ def choose_restaurant(
 
     tier_candidates = buckets[selected_tier]
     selected = randomizer.choice(tier_candidates)
+    if fallback_note:
+        selected = {**selected, "fallback_note": fallback_note}
     new_pity = 0 if selected_tier == "SSR" else pity_counter + 1
     return selected, selected_tier, new_pity
 
@@ -128,6 +201,7 @@ def choose_restaurant(
 def match_score(
     business: dict[str, Any],
     cuisines: list[str],
+    dishes: list[str],
     prices: list[int],
     vibes: list[str],
     history: list[dict[str, Any]],
@@ -149,8 +223,28 @@ def match_score(
         business_cuisines & CUISINE_ALIASES.get(cuisine, {cuisine})
         for cuisine in requested_cuisines
     ):
-        score += 40
+        score += 30
         reasons.append("cuisine match")
+
+    searchable_text = _normalize_search_text(" ".join(
+        [
+            str(business.get("name", "")),
+            *business_cuisines,
+            *tags.values(),
+        ]
+    ))
+    matched_dishes = [
+        dish
+        for dish in {dish.lower() for dish in dishes}
+        if any(
+            _normalize_search_text(alias) in searchable_text
+            for alias in DISH_ALIASES.get(dish, {dish})
+        )
+    ]
+    if matched_dishes:
+        score += 25
+        labels = ", ".join(dish.replace("_", " ") for dish in sorted(matched_dishes))
+        reasons.append(f"specific dish match: {labels}")
 
     matched_vibes = [
         vibe
@@ -205,6 +299,53 @@ def filter_candidates(
 
 def normalize_vibes(vibes: list[str]) -> set[str]:
     return {vibe.lower() for vibe in vibes} - REMOVED_VIBES
+
+
+def matches_requested_cuisine(
+    business: dict[str, Any],
+    cuisines: list[str],
+) -> bool:
+    if not cuisines:
+        return False
+    business_cuisines = {
+        str(cuisine).lower().replace(" ", "_")
+        for cuisine in business.get("cuisines") or []
+    }
+    return any(
+        business_cuisines & CUISINE_ALIASES.get(cuisine.lower(), {cuisine.lower()})
+        for cuisine in cuisines
+    )
+
+
+def matches_requested_dish(
+    business: dict[str, Any],
+    dishes: list[str],
+) -> bool:
+    if not dishes:
+        return False
+    tags = {
+        str(key): str(value).lower()
+        for key, value in (business.get("tags") or {}).items()
+    }
+    searchable_text = _normalize_search_text(
+        " ".join(
+            [
+                str(business.get("name", "")),
+                *(str(cuisine) for cuisine in business.get("cuisines") or []),
+                *tags.values(),
+            ]
+        )
+    )
+    return any(
+        _normalize_search_text(alias) in searchable_text
+        for dish in {dish.lower() for dish in dishes}
+        for alias in DISH_ALIASES.get(dish, {dish})
+    )
+
+
+def _normalize_search_text(value: str) -> str:
+    words = re.sub(r"[^\w]+", " ", value.lower().replace("_", " ")).strip()
+    return f" {words} "
 
 
 def history_entry(

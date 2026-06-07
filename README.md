@@ -22,7 +22,7 @@ $ foodgacha pull
 Override saved filters for one pull without changing them:
 
 ```console
-$ foodgacha pull --location "La Jolla, CA" --cuisine japanese --price 2
+$ foodgacha pull --location "La Jolla, CA" --cuisine japanese --dish sushi --price 2
 ```
 
 Log a visit using a full or partial restaurant name, then review your history
@@ -47,6 +47,7 @@ Install the command directly from GitHub:
 ```console
 $ uv add "git+https://github.com/alanx1234/foodgacha.git"
 $ uv run foodgacha --help
+$ source .venv/bin/activate
 ```
 
 ## How Recommendations Work
@@ -59,9 +60,14 @@ unnecessary requests to community-run services.
 ### Swiping
 
 The swipe feature works like a terminal-based dating app. Press the right arrow
-or `y` to keep a cuisine, price, or vibe, and press the left arrow or `n` to
-skip it. Foodgacha saves your choices for future pulls and uses them to find
-restaurants that fit what you are in the mood for.
+or `y` to keep a card, and press the left arrow or `n` to skip it. The first
+three rounds cover cuisine, price, and vibe. A fourth round then offers specific
+dishes based on the cuisines you chose, such as sushi or katsu for Japanese
+food and tacos or burritos for Mexican food. When OpenStreetMap has places
+tagged with one of your selected dishes, the pull is limited to those matches.
+If none are tagged nearby, foodgacha falls back to matching cuisines. When the
+local OpenStreetMap data has no cuisine match either, it uses the remaining
+preferences rather than failing with an empty result.
 
 ### Rarity Tiers
 
@@ -71,7 +77,8 @@ restaurant; it simply matched fewer of your current preferences.
 
 Foodgacha gives each nearby restaurant match points:
 
-- Exact cuisine match: **+40 points**
+- Cuisine match: **+30 points**
+- Specific dish match: **+25 points**
 - Each matching vibe: **+15 points**
 - Matching price preference, when available: **+10 points**
 - Within two miles: **+15 points**

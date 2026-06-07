@@ -62,6 +62,7 @@ def swipe() -> None:
     save_data(data)
     console.print("\n[bold magenta]Your vibe[/bold magenta]")
     console.print(f"cuisines: {_format_list(preferences['cuisines'])}")
+    console.print(f"specific dishes: {_format_list(preferences['dishes'])}")
     console.print(f"price: {_format_prices(preferences['price'])}")
     console.print(f"vibes: {_format_list(preferences['vibes'])}")
     console.print("\n[green]Preferences saved.[/green] Run [bold]foodgacha pull[/bold].")
@@ -76,6 +77,10 @@ def pull(
         list[str] | None,
         typer.Option(help="Override saved cuisines. Repeat for more than one."),
     ] = None,
+    dish: Annotated[
+        list[str] | None,
+        typer.Option(help="Override saved dishes. Repeat for more than one."),
+    ] = None,
     price: Annotated[
         list[int] | None,
         typer.Option(min=1, max=4, help="Override saved prices. Repeat for more than one."),
@@ -87,6 +92,7 @@ def pull(
         _ensure_location(data)
     preferences = data.get("preferences", {})
     cuisines = cuisine if cuisine else list(preferences.get("cuisines", []))
+    dishes = dish if dish else list(preferences.get("dishes", []))
     prices = price if price else list(preferences.get("price", []))
     vibes = list(preferences.get("vibes", []))
     search_location = location or str(data["location"])
@@ -107,6 +113,7 @@ def pull(
         int(data.get("pity_counter", 0)),
         list(data.get("history", [])),
         cuisines=cuisines,
+        dishes=dishes,
         prices=prices,
         vibes=vibes,
     )
@@ -116,6 +123,9 @@ def pull(
             "Try [bold]foodgacha swipe[/bold] to loosen your preferences."
         )
         raise typer.Exit(1)
+
+    if selected.get("fallback_note"):
+        console.print(f"[yellow]{selected['fallback_note']}[/yellow]")
 
     stars = {"SSR": "*****", "SR": "****", "R": "***", "U": "**", "C": "*"}[
         rarity

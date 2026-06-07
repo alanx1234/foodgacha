@@ -54,14 +54,31 @@ def test_match_score_rewards_preferences_distance_and_metadata() -> None:
     score, reasons = match_score(
         restaurant,
         cuisines=["japanese"],
+        dishes=[],
         prices=[],
         vibes=["sit-down", "filling"],
         history=[],
     )
 
-    assert score == 95
+    assert score == 85
     assert "cuisine match" in reasons
     assert "within two miles" in reasons
+
+
+def test_match_score_rewards_specific_dish_from_restaurant_name() -> None:
+    restaurant = business("Katsu Cafe", cuisine="japanese", distance=5000)
+
+    score, reasons = match_score(
+        restaurant,
+        cuisines=["japanese"],
+        dishes=["katsu"],
+        prices=[],
+        vibes=[],
+        history=[],
+    )
+
+    assert score == 55
+    assert "specific dish match: katsu" in reasons
 
 
 def test_pity_forces_ssr_when_available() -> None:
@@ -103,6 +120,54 @@ def test_pity_remains_active_without_ssr_candidate() -> None:
     assert selected is not None
     assert rarity == "C"
     assert pity == 10
+
+
+def test_requested_dishes_narrow_candidates_when_matches_exist() -> None:
+    selected, _, _ = choose_restaurant(
+        [
+            business("Sushi Place", cuisine="sushi"),
+            business("Taco Place", cuisine="taco"),
+        ],
+        pity_counter=0,
+        history=[],
+        cuisines=["japanese", "mexican"],
+        dishes=["sushi"],
+        rng=random.Random(1),
+    )
+
+    assert selected is not None
+    assert selected["id"] == "Sushi Place"
+
+
+def test_requested_dishes_fall_back_when_osm_has_no_match() -> None:
+    selected, _, _ = choose_restaurant(
+        [business("Japanese Place", cuisine="japanese")],
+        pity_counter=0,
+        history=[],
+        cuisines=["japanese"],
+        dishes=["katsu"],
+        rng=random.Random(1),
+    )
+
+    assert selected is not None
+    assert selected["id"] == "Japanese Place"
+    assert "cuisine matches were used" in str(selected["fallback_note"])
+
+
+def test_requested_cuisines_narrow_candidates_when_matches_exist() -> None:
+    selected, _, _ = choose_restaurant(
+        [
+            business("Ramen Place", cuisine="ramen"),
+            business("Pizza Place", cuisine="pizza"),
+        ],
+        pity_counter=0,
+        history=[],
+        cuisines=["japanese"],
+        rng=random.Random(1),
+    )
+
+    assert selected is not None
+    assert selected["id"] == "Ramen Place"
 
 
 def test_visited_restaurants_are_always_excluded() -> None:

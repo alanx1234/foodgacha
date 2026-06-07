@@ -21,7 +21,7 @@ def default_data() -> dict[str, Any]:
         "geocache": {},
         "restaurant_cache": {},
         "pity_counter": 0,
-        "preferences": {"cuisines": [], "price": [], "vibes": []},
+        "preferences": {"cuisines": [], "dishes": [], "price": [], "vibes": []},
         "history": [],
     }
 
@@ -42,6 +42,8 @@ def load_data() -> dict[str, Any]:
     if not isinstance(data.get("preferences"), dict):
         data["preferences"] = default_data()["preferences"]
     preferences = data["preferences"]
+    if not isinstance(preferences.get("dishes"), list):
+        preferences["dishes"] = []
     vibes = preferences.get("vibes", [])
     if isinstance(vibes, list):
         preferences["vibes"] = [

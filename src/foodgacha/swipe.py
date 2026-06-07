@@ -43,6 +43,69 @@ VIBE_CARDS = [
     Card("Filling", "filling", "hearty cuisines get a boost"),
 ]
 
+DISH_CARDS_BY_CUISINE = {
+    "japanese": [
+        Card("Sushi", "sushi"),
+        Card("Ramen", "ramen"),
+        Card("Katsu", "katsu"),
+        Card("Udon", "udon"),
+    ],
+    "korean": [
+        Card("Korean BBQ", "korean_barbecue"),
+        Card("Bibimbap", "bibimbap"),
+        Card("Korean Fried Chicken", "korean_fried_chicken"),
+        Card("Tteokbokki", "tteokbokki"),
+    ],
+    "mexican": [
+        Card("Burritos", "burrito"),
+        Card("Tacos", "taco"),
+        Card("Quesadillas", "quesadilla"),
+        Card("Tamales", "tamale"),
+    ],
+    "italian": [
+        Card("Pizza", "pizza"),
+        Card("Pasta", "pasta"),
+        Card("Panini", "panini"),
+        Card("Gelato", "gelato"),
+    ],
+    "american": [
+        Card("Burgers", "burger"),
+        Card("Barbecue", "barbecue"),
+        Card("Steak", "steak"),
+        Card("Wings", "wings"),
+    ],
+    "thai": [
+        Card("Pad Thai", "pad_thai"),
+        Card("Thai Curry", "thai_curry"),
+        Card("Boat Noodles", "boat_noodles"),
+        Card("Tom Yum", "tom_yum"),
+    ],
+    "chinese": [
+        Card("Dim Sum", "dim_sum"),
+        Card("Hot Pot", "hotpot"),
+        Card("Szechuan", "szechuan"),
+        Card("Noodles", "chinese_noodles"),
+    ],
+    "indian": [
+        Card("Curry", "indian_curry"),
+        Card("Biryani", "biryani"),
+        Card("Tandoori", "tandoori"),
+        Card("Dosa", "dosa"),
+    ],
+    "vietnamese": [
+        Card("Pho", "pho"),
+        Card("Banh Mi", "banh_mi"),
+        Card("Vermicelli", "vermicelli"),
+        Card("Spring Rolls", "spring_rolls"),
+    ],
+    "mediterranean": [
+        Card("Kebab", "kebab"),
+        Card("Gyro", "gyro"),
+        Card("Falafel", "falafel"),
+        Card("Hummus", "hummus"),
+    ],
+}
+
 
 def collect_preferences(console: Console) -> dict[str, list[str] | list[int]]:
     console.print(
@@ -51,11 +114,25 @@ def collect_preferences(console: Console) -> dict[str, list[str] | list[int]]:
     cuisines = _run_round(console, "Round 1: cuisines", CUISINE_CARDS)
     prices = _run_round(console, "Round 2: prices", PRICE_CARDS)
     vibes = _run_round(console, "Round 3: vibes", VIBE_CARDS)
+    dish_cards = dish_cards_for([str(value) for value in cuisines])
+    dishes = _run_round(console, "Round 4: specific dishes", dish_cards)
     return {
         "cuisines": [str(value) for value in cuisines],
         "price": [int(value) for value in prices],
         "vibes": [str(value) for value in vibes],
+        "dishes": [str(value) for value in dishes],
     }
+
+
+def dish_cards_for(cuisines: list[str]) -> list[Card]:
+    cards: list[Card] = []
+    seen: set[str | int] = set()
+    for cuisine in cuisines:
+        for card in DISH_CARDS_BY_CUISINE.get(cuisine, []):
+            if card.value not in seen:
+                cards.append(card)
+                seen.add(card.value)
+    return cards
 
 
 def _run_round(

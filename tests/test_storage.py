@@ -30,3 +30,14 @@ def test_removed_vibes_are_migrated_out(tmp_path, monkeypatch) -> None:
     save_data(data)
 
     assert load_data()["preferences"]["vibes"] == ["quick", "spicy"]
+
+
+def test_old_profiles_gain_empty_dish_preferences(tmp_path, monkeypatch) -> None:
+    path = tmp_path / "data.json"
+    monkeypatch.setenv("FOODGACHA_DATA_FILE", str(path))
+    path.write_text(
+        '{"preferences":{"cuisines":["japanese"],"price":[],"vibes":[]}}',
+        encoding="utf-8",
+    )
+
+    assert load_data()["preferences"]["dishes"] == []
