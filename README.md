@@ -18,6 +18,7 @@ Pull a restaurant using your saved preferences:
 ```console
 $ foodgacha pull
 ```
+Note that the first time you use this it might take a while to load.
 
 Override saved filters for one pull without changing them:
 
